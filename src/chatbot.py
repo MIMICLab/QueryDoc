@@ -109,13 +109,11 @@ class PDFChatBot:
         query_improvement_prompt = (
             "The user question is: " + query + "\n\n"
             "The retrieved chunks are:\n" + combined_answer + "\n\n"
-            "Based on the retrieved chunks above, generate supplemental question(s) "
-            "that would help retrieve even more relevant information. "
-            "List the additional question(s) clearly.\n\n"
+            "Based on the retrieved chunks above, generate a supplemental question that would help retrieve even more relevant information.\n Only display the final question.\n"
             "The improved question is: "
         )
         improved_query = local_llm.generate(query_improvement_prompt, streaming=streaming)
-     
+        improved_query = improved_query.split("<|im_start|>assistant")[1].split("<|im_end|>")[0].strip()
         if fine_only:              
             relevant_secs = self.sections
         else:
