@@ -41,11 +41,13 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-• For OCR features, install Tesseract and the appropriate language data, e.g.  
-  `sudo apt-get install tesseract-ocr`   # Debian/Ubuntu
-  `sudo apt-get install tesseract-ocr-kor`
-  `brew install tesseract-ocr`   # MacOS
-  `brew install tesseract-ocr-kor` 
+• For OCR features, install Tesseract and the appropriate language data, 
+```bash
+  sudo apt-get install tesseract-ocr   # Debian/Ubuntu
+  sudo apt-get install tesseract-ocr-kor
+  brew install tesseract-ocr   # MacOS
+  brew install tesseract-ocr-kor
+```
 (On Windows, activate with .\venv\Scripts\activate or a similar command.)
 
 2.	Extract PDF & Split into Chunks
