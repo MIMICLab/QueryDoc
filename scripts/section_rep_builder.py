@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
 import numpy as np
 from src.inference.embedding_model import embedding_model
+from glob import glob
 
 def build_section_reps(sections, chunk_index):
     """
@@ -45,15 +46,27 @@ def build_section_reps(sections, chunk_index):
     
     return sections
 
+# pdf의 이름이 바뀌어도 chunk_index_json 파일을 찾아들어갈 수 있도록 수정
+
+def find_one_vectors_file(index_dir="data/index"):
+    """_vectors.json 파일 중 하나를 자동으로 선택"""
+    vector_files = sorted(glob(os.path.join(index_dir, "*_vectors.json")))
+    if not vector_files:
+        raise FileNotFoundError("No *_vectors.json files found in index directory.")
+    return vector_files[0]  # 알파벳순으로 첫 번째 파일 선택
+
 if __name__ == "__main__":
     # 예시: data/extracted/sections.json (목차 기반 섹션 정보)
     sections_json = "data/extracted/sections.json"
-    # 예시: data/index/sample_chunks_vectors.json (청크 임베딩)
-    chunk_index_json = "data/index/sample_chunks_vectors.json"
+
+    # _vectors.json 파일 중 하나 자동 선택
+    chunk_index_json = find_one_vectors_file()
+
+    print(f"[INFO] Using chunk index file: {chunk_index_json}")
 
     with open(sections_json, 'r', encoding='utf-8') as f:
         sections_data = json.load(f)
-    
+
     with open(chunk_index_json, 'r', encoding='utf-8') as f:
         chunk_index_data = json.load(f)
 
@@ -65,4 +78,4 @@ if __name__ == "__main__":
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(updated_sections, f, ensure_ascii=False, indent=2)
 
-    print("Section reps built and saved.")
+    print("✅ Section reps built and saved.")
