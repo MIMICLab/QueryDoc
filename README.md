@@ -2,6 +2,9 @@
 
 This project is an example chatbot that analyzes PDF documents using an embedding model and generates LLM answers through a Coarse-to-Fine search (RAG) approach.
 
+- [Evangel](https://wordsbecameflesh.org/) : Catholic Priest AI powered by QueryDoc
+- [VerNova] (https://www.lordandfaith.com/static/index.html): Presbyterian Pastor AI powered by QueryDoc
+
 ## QueryDoc
 ```bash
 QueryDoc/
