@@ -25,3 +25,4 @@ pytesseract
 scikit-learn
 gradio
 opencv-python
+bcrypt

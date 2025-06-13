@@ -11,6 +11,7 @@ import pickle
 import gradio as gr
 
 from src.chatbot import PDFChatBot
+from src.utils.auth import hash_password, verify_password, migrate_plain_passwords
 from scripts import pdf_extractor, chunker, build_index, section_rep_builder
 
 # ---------------------------------------------------------------------
@@ -47,12 +48,23 @@ EXTRACT_TIMEOUT = 120  # 2 minutes
 
 # In‑memory view of the persistent database
 _USER_DB = _load_user_db()
+# Migrate plain passwords to hashed passwords if needed
+_USER_DB = migrate_plain_passwords(_USER_DB)
+_save_user_db(_USER_DB)
 USERS = {u: info["password"] for u, info in _USER_DB["users"].items()}
 
 
 def authenticate(username: str, password: str) -> bool:
     """Check if the provided credentials are valid."""
-    return USERS.get(username) == password
+    stored_hash = USERS.get(username)
+    if stored_hash is None:
+        return False
+    # Support both plain and hashed passwords for backward compatibility
+    if stored_hash.startswith("$2b$"):
+        return verify_password(password, stored_hash)
+    else:
+        # Legacy plain password comparison (will be migrated on next save)
+        return stored_hash == password
 
 
 def ensure_user_dir(username: str) -> str:
@@ -66,11 +78,12 @@ def login(username: str, password: str):
     if authenticate(username, password):
         return True, username, "Login successful."
     if username not in USERS:
-        # Atomically create new user
+        # Atomically create new user with hashed password
         with _DB_LOCK:
-            USERS[username] = password
+            hashed_pwd = hash_password(password)
+            USERS[username] = hashed_pwd
             _USER_DB["users"][username] = {
-                "password": password,
+                "password": hashed_pwd,
                 "uploads": [],
                 "prompts": [],
             }
@@ -189,7 +202,7 @@ def load_pdf(pdf_file, system_prompt, username):
     with _DB_LOCK:
         user_record = _USER_DB["users"].setdefault(
             username,
-            {"password": USERS[username], "uploads": [], "prompts": []},
+            {"password": USERS.get(username, hash_password("default")), "uploads": [], "prompts": []},
         )
         if dest_path not in user_record["uploads"]:
             user_record["uploads"].append(dest_path)

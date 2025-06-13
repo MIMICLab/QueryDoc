@@ -2,6 +2,7 @@
 
 from sentence_transformers import SentenceTransformer
 import torch
+from ..utils.device import get_device_and_attention
 
 class EmbeddingModel:
     def __init__(self, model_name="BAAI/bge-m3", device="cpu"):
@@ -30,11 +31,5 @@ class EmbeddingModel:
         return embs
 
 # Example of a global instance
-
-if torch.cuda.is_available():
-    device = "cuda"
-elif torch.backends.mps.is_available():
-    device = "mps"
-else:
-    device = "cpu"
+device, _ = get_device_and_attention()
 embedding_model = EmbeddingModel(model_name="BAAI/bge-m3", device=device)

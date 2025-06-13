@@ -3,6 +3,7 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 from threading import Thread
+from ..utils.device import get_device_and_attention
 
 class LocalLLM:
     def __init__(self, model_name="trillionlabs/Trillion-7B-preview", attn_implementation="flash_attention_2", device="gpu"):
@@ -61,15 +62,7 @@ class LocalLLM:
             return self.tokenizer.decode(output[0])
 
 
-if torch.cuda.is_available():
-    device = "cuda"
-    attn_implementation = "flash_attention_2"
-elif torch.backends.mps.is_available():
-    device = "mps"
-    attn_implementation = "sdpa"
-else:
-    device = "cpu"
-    attn_implementation = "sdpa"
+device, attn_implementation = get_device_and_attention()
 local_llm = LocalLLM(model_name="trillionlabs/Trillion-7B-preview",
                         attn_implementation=attn_implementation, 
                         device=device)

@@ -2,30 +2,27 @@
 
 import numpy as np
 from typing import List, Dict
-
-def cosine_similarity(v1, v2):
-    v1 = np.array(v1)
-    v2 = np.array(v2)
-    dot = np.dot(v1, v2)
-    denom = (np.linalg.norm(v1) * np.linalg.norm(v2)) + 1e-8
-    return dot / denom
+from src.utils.similarity import cosine_similarity
+from .optimized_vector_search import get_optimized_search_engine
 
 def simple_vector_search(query_emb, index_data: List[Dict], top_k=8):
     """
-    query_emb: numpy array or list[float]
-    index_data: [{"embedding": [...], "metadata": {...}}, ...]
+    Optimized vector search using batch operations.
+    
+    Parameters
+    ----------
+    query_emb : numpy array or list[float]
+        Query embedding vector
+    index_data : List[Dict]
+        List of items with format [{"embedding": [...], "metadata": {...}}, ...]
+    top_k : int
+        Number of top results to return
+        
+    Returns
+    -------
+    List[Dict]
+        Top k most similar items
     """
-    results = []
-    query_vec = np.array(query_emb)
-    q_norm = np.linalg.norm(query_vec)
-
-    for item in index_data:
-        emb = np.array(item["embedding"])
-        dot = np.dot(query_vec, emb)
-        denom = np.linalg.norm(emb) * q_norm + 1e-8
-        score = dot / denom
-        results.append((score, item))
-
-    results.sort(key=lambda x: x[0], reverse=True)
-    top_results = [r[1] for r in results[:top_k]]
-    return top_results
+    # Use optimized search engine
+    search_engine = get_optimized_search_engine()
+    return search_engine.search(query_emb, index_data, top_k=top_k)

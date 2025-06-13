@@ -4,10 +4,16 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import json
+import logging
 from src.search.section_coarse_search import coarse_search_sections
 from src.search.fine_search import fine_search_chunks
 from src.inference.embedding_model import embedding_model
 from src.inference.llm_model import local_llm  # Example implementation of a local LLM
+from src.utils.exceptions import SearchError, EmbeddingError
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 DEFAULT_SYSTEM_PROMPT = (
     "Answer the user's question based on the information provided in the document context below.\n"
@@ -93,12 +99,20 @@ class PDFChatBot:
         if fine_only:              
             relevant_secs = self.sections
         else:
-            # Coarse Search (섹션 레벨)
+            # Coarse Search (section level)
             relevant_secs = coarse_search_sections(query, sections, beta=beta, top_k=top_sections)        
-        # Fine Search (청크 레벨)
-        query_emb = embedding_model.get_embedding(query)
+        # Fine Search (chunk level)
+        try:
+            query_emb = embedding_model.get_embedding(query)
+        except Exception as e:
+            logger.error(f"Error generating query embedding: {e}")
+            raise EmbeddingError(f"Failed to generate query embedding: {e}")
 
-        best_chunks = fine_search_chunks(query_emb, chunk_index, relevant_secs, top_k=top_chunks, fine_only=fine_only)
+        try:
+            best_chunks = fine_search_chunks(query_emb, chunk_index, relevant_secs, top_k=top_chunks, fine_only=fine_only)
+        except Exception as e:
+            logger.error(f"Error in fine search: {e}")
+            raise SearchError(f"Failed to perform fine search: {e}")
 
         # Build a single string that contains the content of every retrieved chunk
         combined_answer = "\n\n".join(
@@ -112,24 +126,46 @@ class PDFChatBot:
             "Based on the retrieved chunks above, generate a supplemental question that would help retrieve even more relevant information.\n Only display the final question.\n"
             "The improved question is: "
         )
-        improved_query = local_llm.generate(query_improvement_prompt, streaming=streaming)
-        improved_query = improved_query.split("<|im_start|>assistant")[1].split("<|im_end|>")[0].strip()
+        try:
+            improved_query = local_llm.generate(query_improvement_prompt, streaming=streaming)
+            # Safely extract improved query
+            if "<|im_start|>assistant" in improved_query and "<|im_end|>" in improved_query:
+                improved_query = improved_query.split("<|im_start|>assistant")[1].split("<|im_end|>")[0].strip()
+            else:
+                logger.warning("Could not parse improved query, using original query")
+                improved_query = query
+        except Exception as e:
+            logger.error(f"Error generating improved query: {e}")
+            improved_query = query
         if fine_only:              
             relevant_secs = self.sections
         else:
-            # Coarse Search (섹션 레벨)
+            # Coarse Search (section level)
             relevant_secs = coarse_search_sections(query + ':' + improved_query, sections, beta=beta, top_k=top_sections)
             
-        # Fine Search (청크 레벨)            
-        query_emb = embedding_model.get_embedding(query + ':' + improved_query)                            
-        best_chunks = fine_search_chunks(query_emb, chunk_index, 
-                                         relevant_secs, top_k=top_chunks, 
-                                         fine_only=fine_only)
+        # Fine Search (chunk level)
+        try:
+            query_emb = embedding_model.get_embedding(query + ':' + improved_query)
+        except Exception as e:
+            logger.error(f"Error generating combined query embedding: {e}")
+            raise EmbeddingError(f"Failed to generate combined query embedding: {e}")
+        
+        try:
+            best_chunks = fine_search_chunks(query_emb, chunk_index, 
+                                           relevant_secs, top_k=top_chunks, 
+                                           fine_only=fine_only)
+        except Exception as e:
+            logger.error(f"Error in fine search with improved query: {e}")
+            raise SearchError(f"Failed to perform fine search with improved query: {e}")
             
-        # LLM 답변 생성
-        prompt = self.build_prompt(query, best_chunks)
-        answer_text = local_llm.generate(prompt, streaming=streaming)
-        return answer_text
+        # Generate LLM answer
+        try:
+            prompt = self.build_prompt(query, best_chunks)
+            answer_text = local_llm.generate(prompt, streaming=streaming)
+            return answer_text
+        except Exception as e:
+            logger.error(f"Error generating answer: {e}")
+            return f"Sorry, an error occurred while generating the answer: {str(e)}"
 
 if __name__ == "__main__":
     sections_path = "data/extracted/sections_with_emb.json"

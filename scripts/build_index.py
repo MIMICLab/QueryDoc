@@ -10,8 +10,8 @@ from src.inference.embedding_model import embedding_model
 def build_chunk_index(chunks):
     """
     chunks: [{"content": "...", "section_title": "...", ...}, ...]
-    임베딩 모델로 각 content를 임베딩해
-    [{ "embedding": [...], "metadata": {...} }, ...] 형태로 반환
+    Embed each content using the embedding model
+    Returns [{ "embedding": [...], "metadata": {...} }, ...] format
     """
     contents = [c["content"] for c in chunks]
     embeddings = embedding_model.get_embeddings(contents)  # shape: (N, emb_dim)
