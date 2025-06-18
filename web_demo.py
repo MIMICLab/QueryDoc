@@ -13,6 +13,15 @@ import gradio as gr
 from src.chatbot import PDFChatBot
 from scripts import pdf_extractor, chunker, build_index, section_rep_builder
 
+lightTheme = gr.themes.Soft().set(
+    body_background_fill="ffffff",
+    body_text_color="#000000"
+)
+
+darkTheme = gr.themes.Soft().set(
+    body_background_fill="1f1f1f",
+    body_text_color="ffffff"
+)
 # ---------------------------------------------------------------------
 # Persistent user database (credentials + uploads + prompts)
 # ---------------------------------------------------------------------
@@ -21,6 +30,7 @@ USER_DB_PATH = os.path.join("data", "user_db.json")
 
 # Re‑entrant lock to guard all reads/writes to the shared user DB in multi‑threaded Gradio
 _DB_LOCK = threading.RLock()
+
 
 
 def _load_user_db():
@@ -37,9 +47,17 @@ def _save_user_db(db: dict):
         with open(USER_DB_PATH, "w", encoding="utf-8") as f:
             json.dump(db, f, indent=2)
 
+QUICK_RESPONSE = ("Focus on a concise and accurate answer, 1-2 sentences")
+INDEPTH_RESPONSE = ("Make a detailed analysis based on the document and provide a comprehensive answer.")
+ANALYSE_RESPONSE = ("Analyze the topic and offer a thoughtful summary with your own insights or suggestions.")
+
 DEFAULT_PROMPT = (
-    "Answer the user's question based on the information provided in the document context below.\n"
-    "Your response should reference the context clearly, but you may paraphrase or summarize appropriately."
+    "You are a medical assistant chatbot.\n"
+    "Answer the user's question using only the information provided in the medical document context below.\n"
+    "Be clear, professional and concise.\n"
+    "Reference the exact section from the document.\n"
+    "You may paraphrase, but do not invent or assume information not present in the context."
+    "If the answer is not found in the context, say so explicitly."
 )
 
 # Max time (seconds) allowed for pdf_extractor.extract_pdf_content
@@ -304,23 +322,42 @@ def delete_cached_pdf(selected_name, username):
     return None, None, dropdown_update, msg
 
 
-def ask_question(question, sections, chunk_index, system_prompt, username, use_index):
+def ask_question(question, sections, chunk_index, system_prompt, username, use_index, mode):
     fine_only = not use_index 
     if not username:
         return "Please log in first."
     if sections is None or chunk_index is None:
         return "Please upload and process a PDF first."
+    # additional prompt for mode (Quick, In-Depth, Analyse)
+    if (mode == "Quick"):
+        mode_prompt = QUICK_RESPONSE
+    elif (mode == "In-Depth"):
+        mode_prompt = INDEPTH_RESPONSE
+    elif (mode == "Analyse"):
+        mode_prompt = ANALYSE_RESPONSE
+    
     prompt = system_prompt or DEFAULT_PROMPT
-    bot = PDFChatBot(sections, chunk_index, system_prompt=prompt)
+    #full prompt with mode and basic prompt
+    full_prompt = f"{prompt} + {mode_prompt}"
+
+    bot = PDFChatBot(sections, chunk_index, system_prompt=full_prompt)
     answer = bot.answer(question, fine_only=fine_only)
     answer = answer.replace('<|endoftext|><|im_start|>user',"=== System Prompt ===")
     answer = answer.replace('<|im_end|>\n<|im_start|>assistant','')
     answer = answer.replace('<|im_end|>','')
     answer_output = answer.split("=== Answer ===")[-1].strip()
     reference_output = answer.split("=== User Question ===")[0].strip().split("=== Document Context ===")[-1].strip()
-
+    print(f"\n\n--- PROMPT LENGTH = {len(full_prompt)} ---\n\n")
     return answer_output, reference_output
 
+def switch_theme(theme_name):
+    if theme_name == "default":
+        return gr.themes.Default()
+    elif theme_name == "monochrome":
+        return gr.themes.Monochrome()
+    elif theme_name == "soft":
+        return gr.themes.Soft()
+    # Add more themes as needed
 
 with gr.Blocks() as demo:
     gr.Markdown("## QueryDoc Web Demo")
@@ -373,7 +410,13 @@ with gr.Blocks() as demo:
                 gr.Markdown("### Ask a Question")
                 gr.Markdown("- Ask a question based on the uploaded PDF.")
                 gr.Markdown("- Check **Coarse-to-Fine Search** to enable Table of Contents based search.")
+                gr.Markdown("- Select a mode for the type of response")
                 question_input = gr.Textbox(label="Question")
+                dropdown_mode = gr.Dropdown(
+                    label="Answer mode",
+                    choices=["Quick", "In-Depth", "Analyse"],
+                    value="Quick"
+                )
                 use_index = gr.Checkbox(label="Coarse-to-Fine Search", value=False)
                 ask_btn = gr.Button("Ask", variant="primary")
         gr.Markdown("### Answer")
@@ -406,8 +449,8 @@ with gr.Blocks() as demo:
         inputs=[existing_dropdown, username_state],
         outputs=[sections_state, index_state, existing_dropdown, status]
     )
-    question_input.submit(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index], outputs=[answer_output, reference_output])
-    ask_btn.click(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index], outputs=[answer_output, reference_output])
-
+    question_input.submit(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index, dropdown_mode], outputs=[answer_output, reference_output])
+    ask_btn.click(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index, dropdown_mode], outputs=[answer_output, reference_output])
+    
 if __name__ == "__main__":            
-    demo.launch(server_name="0.0.0.0", server_port=30987)
+    demo.launch(server_name="0.0.0.0", server_port=30000)
