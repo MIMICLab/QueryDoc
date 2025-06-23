@@ -39,8 +39,13 @@ def _save_user_db(db: dict):
             json.dump(db, f, indent=2)
 
 DEFAULT_PROMPT = (
-    "Answer the user's question based on the information provided in the document context below.\n"
-    "Your response should reference the context clearly, but you may paraphrase or summarize appropriately."
+    "You are an assistant chatbot trained to answer questions. .\n"
+    "You must answer questions using only the information found in the uploaded reference document. \n"
+    "Do not invent or assume facts. If the answer is not available in the document, clearly state: “The answer to your question is not found in the provided document.”\n"
+    "Your responses should be accurate, clear, concise, and professional—suitable. \n"
+    "Cite the section explicitly in your answer.\n"
+    "Paraphrasing is allowed, but always stay faithful to the document content.\n"
+    "Do not summarize the entire document or explain concepts not mentioned in the file.\n"
 )
 
 # Max time (seconds) allowed for pdf_extractor.extract_pdf_content
@@ -335,64 +340,49 @@ def ask_question(question, sections, chunk_index, system_prompt, username, use_i
     return answer_output, reference_output
 
 
-with gr.Blocks() as demo:
-    gr.Markdown("## QueryDoc Web Demo")
+with gr.Blocks(theme=gr.themes.Soft()) as demo:
+    gr.Markdown("""
+    # 🧠 QueryDoc Chatbot
+    Upload your PDF, ask questions, and get context-aware answers with Coarse-to-Fine Retrieval.
+    """)
 
-    # Login components
-    with gr.Column():
-        with gr.Row():
-            login_user = gr.Textbox(label="Username")
-            login_pass = gr.Textbox(label="Password", type="password")
-            login_btn = gr.Button("Login", variant="primary")
-        login_status = gr.Textbox(label="Login Status", interactive=False)
+    with gr.Tab("🔐 Login"):
+        login_group = gr.Group(visible=True)
+        with gr.Column(scale=1):
+            gr.Markdown("### Log In or Create Account")
+            login_user = gr.Textbox(label="Username", placeholder="Enter your username")
+            login_pass = gr.Textbox(label="Password", type="password", placeholder="Enter your password")
+            login_btn = gr.Button("Login / Register", variant="primary")
+            login_status = gr.Textbox(label="Status", interactive=False)
 
-    # Main interaction area – hidden until login is successful
-    with gr.Column(visible=False) as main_area:
-        # First row ‑‑ two side‑by‑side upload panels
-        with gr.Row():
-            # Left column – previously uploaded files
-            with gr.Column(scale=1):  
-                gr.Markdown("### Previously Uploaded PDFs")
-                gr.Markdown("- The PDF will be loaded from the cache.")
-                gr.Markdown("- **Load Selected** will load the selected PDF.")
-                gr.Markdown("- **Load All Cached** will load all PDFs in the cache.")
-                gr.Markdown("- **Delete Selected** will permanently remove the selected PDF and its cache.")
+    with gr.Tab("📄 PDF Workspace"):
+        workspace_group = gr.Group(visible=False)
+        with gr.Column() as main_area:
+            gr.Markdown("### Upload and Manage PDFs")
+            with gr.Row():
+                with gr.Column():
+                    pdf_input = gr.File(label="Upload a PDF", file_types=[".pdf"])
+                    prompt_input = gr.Textbox(label="System Prompt", value=DEFAULT_PROMPT, lines=4)
+                    load_btn = gr.Button("Load PDF", variant="primary")
 
-                existing_dropdown = gr.Dropdown(label="Select a PDF", choices=[])
-                load_existing_btn = gr.Button("Load Selected", variant="primary")
-                load_all_btn = gr.Button("Load All Cached", variant="secondary")
-                delete_btn = gr.Button("Delete Selected", variant="stop")
+                with gr.Column():
+                    existing_dropdown = gr.Dropdown(label="Previously Uploaded PDFs", choices=[])
+                    load_existing_btn = gr.Button("Load Selected", variant="primary")
+                    load_all_btn = gr.Button("Load All Cached", variant="secondary")
+                    delete_btn = gr.Button("Delete Selected", variant="stop")
 
-            # Right column – new upload
-            with gr.Column(scale=1): 
-                gr.Markdown("### Upload New PDF")
-                gr.Markdown("- Upload a new PDF file. Timeout for processing is **2 minutes**.")
-                gr.Markdown("- **Load PDF** will process the uploaded PDF.")
-                gr.Markdown("- The PDF will be cached for future use under same Username/Password.")
+            status = gr.Textbox(label="PDF Status", interactive=False)
 
-                pdf_input = gr.File(label="PDF File", file_types=[".pdf"])
-                load_btn = gr.Button("Load PDF", variant="primary")
+            gr.Markdown("### Ask a Question")
+            question_input = gr.Textbox(label="Your Question", placeholder="What do you want to know?", lines=2)
+            use_index = gr.Checkbox(label="Enable Coarse-to-Fine Search")
+            ask_btn = gr.Button("Ask", variant="primary")
 
-        # Second row ‑‑ status spans the full width
-        status = gr.Textbox(label="PDF Status", interactive=False)
-        gr.Markdown("### System Prompt")
-        gr.Markdown("- Customize the system prompt for the PDF.")
-        gr.Markdown("- The system prompt will be used to guide the response.")
-        gr.Markdown("- The system prompt will be saved for future use under same Username/Password.")
-        prompt_input = gr.Textbox(label="System Prompt", lines=10, value=DEFAULT_PROMPT)
+            gr.Markdown("### 📝 Answer")
+            answer_output = gr.Textbox(label="Answer", lines=10, interactive=False)
+            gr.Markdown("### 🔍 References")
+            reference_output = gr.Textbox(label="References", lines=10, interactive=False)
 
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("### Ask a Question")
-                gr.Markdown("- Ask a question based on the uploaded PDF.")
-                gr.Markdown("- Check **Coarse-to-Fine Search** to enable Table of Contents based search.")
-                question_input = gr.Textbox(label="Question")
-                use_index = gr.Checkbox(label="Coarse-to-Fine Search", value=False)
-                ask_btn = gr.Button("Ask", variant="primary")
-        gr.Markdown("### Answer")
-        answer_output = gr.Textbox(label="Answer", interactive=False, lines=10)
-        gr.Markdown("### References")
-        reference_output = gr.Textbox(label="References", interactive=False, lines=10)
     logged_in_state = gr.State(False)
     username_state = gr.State("")
     sections_state = gr.State()
@@ -422,5 +412,5 @@ with gr.Blocks() as demo:
     question_input.submit(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index], outputs=[answer_output, reference_output])
     ask_btn.click(ask_question, inputs=[question_input, sections_state, index_state, prompt_input, username_state, use_index], outputs=[answer_output, reference_output])
 
-if __name__ == "__main__":            
+if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=30987)
