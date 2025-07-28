@@ -130,8 +130,18 @@ python web_demo.py
 • pandas: DataFrame operations for layout analysis  
 • scikit‑learn: KMeans clustering for multi‑column detection
 
+## Project Context & Collaboration
+
+This project was **jointly developed with STOIC Entertainment** to provide an open-source, educational example of their proprietary **QueryDoc** technology.
+
+STOIC Entertainment, a pioneer in AI+XR interactive content, holds the patent for the original QueryDoc system. Their advanced on-device RAG technology is a core component of commercial products.
+
+This public repository was created in collaboration to demonstrate the core principles of the technology for research and development purposes.
+
 ## Notes
 
 • Models such as bge-m3 and Trillion-7B may take some time to download the first time they are loaded.
 
 • Since section content is complemented using the average of section chunk embeddings (without a summarization model), very long sections may result in reduced search accuracy. (Utilizing a summarization model may be considered in the future.)
+
+• Jointly developed by **MimicLab at Sogang University** and **STOIC Entertainment**, a leader in XR and AI-driven interactive content.
