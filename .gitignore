@@ -1,0 +1,66 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.cache/
+
+# Python build artifacts
+build/
+dist/
+site/
+*.egg-info/
+*.egg
+*.whl
+
+# C extensions
+*.so
+*.dylib
+*.dll
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE/editor metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Testing/runtime artifacts
+.hypothesis/
+.tox/
+.nox/
+.pytype/
+
+# Project generated data (keep source data)
+data/extracted/
+data/chunks/
+data/index/
+data/sections_with_emb*
+data/user_uploads/
+!data/original/
+!data/original/sample.pdf
+
+# HuggingFace / model caches
+.cache/huggingface/
+.cache/
+
+# Optional local configs
+.env
+.env.*
